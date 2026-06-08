@@ -1,0 +1,96 @@
+---
+title: "Point an agent at your docs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Point an agent at your docs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`ragdoc` turns your documentation into a retrieval tool a coding agent can call.
+Instead of guessing, the agent retrieves the *actual* passages from your docs,
+each returned with a `[source · url]` citation it can quote back.
+
+The whole workflow is three steps: describe the sources, build the store once,
+then query it. The chunks below are not evaluated (building needs network access
+and an API key), but they are the real calls.
+
+## 1. Describe your sources
+
+A source is a site to crawl. Give it a short `name` (used for citations and for
+filtering later) and, optionally, a `pattern` regex so you ingest only the pages
+you want and skip navigation and asset links.
+
+```{r}
+library(ragdoc)
+
+src <- sources(
+  web("handbook", "https://docs.example.com/", pattern = "\\.html$")
+)
+```
+
+You can list several sources in one spec; their names must be unique.
+
+```{r}
+src <- sources(
+  web("handbook", "https://docs.example.com/", pattern = "\\.html$"),
+  web("api",      "https://api.example.com/",  pattern = "\\.html$")
+)
+```
+
+## 2. Build the store
+
+`build_store()` crawls each source, converts pages to markdown, chunks and
+embeds them, and writes a DuckDB store with a hybrid (vector + keyword) index.
+This is the one-time, network-bound step. By default it embeds with OpenAI's
+`text-embedding-3-small`, so set `OPENAI_API_KEY` in `~/.Renviron` first — or
+pass your own `embed=` function.
+
+```{r}
+build_store(src, "handbook.duckdb")
+```
+
+A broken page or an unreachable source is logged and skipped, not fatal, so you
+always get a usable store.
+
+## 3. Query it
+
+Open the store and search. `search_docs()` returns a single formatted string —
+the passages, each cited with its source and URL — which is exactly what you
+hand to an agent.
+
+```{r}
+store <- connect_store("handbook.duckdb")
+cat(search_docs(store, "how do I rotate the signing keys", n = 5))
+```
+
+Restrict to one source by name:
+
+```{r}
+cat(search_docs(store, "rate limits", source = "api"))
+```
+
+`connect_store()` returns a plain `ragnar` store, so you can drop down to
+`ragnar` directly any time you need to.
+
+## Serving it to an agent over MCP
+
+The point of all this is to expose the store to a coding agent. `serve_mcp()`
+wraps the store in a single Model Context Protocol tool and starts a server.
+Put this in a script and point your agent at it:
+
+```{r}
+library(ragdoc)
+serve_mcp("handbook.duckdb",
+  name        = "search_handbook",
+  description = "Search the Example Co engineering handbook.")
+```
+
+The agent now has a `search_handbook` tool. Pass `sources =` to hint at the
+valid `source` filter values in the tool description. If the store has not been
+built yet, the server still starts and the tool says so rather than crashing —
+convenient while you are still setting things up.

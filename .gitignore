@@ -1,0 +1,8 @@
+# regenerable stores
+*.duckdb
+*.duckdb.wal
+# R artifacts
+.Rproj.user/
+.Rhistory
+.RData
+.Renviron

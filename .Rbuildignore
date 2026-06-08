@@ -1,0 +1,7 @@
+^LICENSE\.md$
+^\.git.*$
+^.*\.Rproj$
+^\.Rproj\.user$
+^.*\.duckdb$
+^\.Renviron$
+^\.github$
