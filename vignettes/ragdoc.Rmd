@@ -1,8 +1,8 @@
 ---
-title: "Point an agent at your docs"
+title: "Point ragdoc at your docs"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Point an agent at your docs}
+  %\VignetteIndexEntry{Point ragdoc at your docs}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

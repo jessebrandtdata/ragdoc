@@ -4,7 +4,7 @@
 \alias{build_store}
 \title{Build a RAG store from a sources spec}
 \usage{
-build_store(sources, path, embed = NULL, overwrite = TRUE)
+build_store(sources, path, embed = NULL, overwrite = FALSE)
 }
 \arguments{
 \item{sources}{A sources spec from \code{\link[=sources]{sources()}}.}
@@ -14,7 +14,10 @@ build_store(sources, path, embed = NULL, overwrite = TRUE)
 \item{embed}{Optional embedding function. When \code{NULL} (default), uses OpenAI
 \code{text-embedding-3-small} and requires \code{OPENAI_API_KEY}.}
 
-\item{overwrite}{Overwrite an existing store at \code{path}? Defaults to \code{TRUE}.}
+\item{overwrite}{Overwrite an existing store at \code{path}? Defaults to \code{FALSE},
+so an existing store is left intact unless you explicitly opt in --
+rebuilding discards a store that may represent real crawl time and API
+spend.}
 }
 \value{
 Invisibly, \code{TRUE} if every source ingested cleanly, \code{FALSE}

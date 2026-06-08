@@ -19,32 +19,58 @@ read_page_chunks <- function(page) {
 #' @keywords internal
 #' @noRd
 ingest_source <- function(store, source) {
-  links <- ragnar::ragnar_find_links(source$root_url)
+  links <- tryCatch(
+    ragnar::ragnar_find_links(source$root_url),
+    error = function(e) {
+      message(sprintf("%s: link discovery failed -- %s",
+                      source$name, conditionMessage(e)))
+      NULL
+    }
+  )
+  if (is.null(links)) return(FALSE)
   if (!is.null(source$crawl_pattern)) {
     links <- grep(source$crawl_pattern, links, value = TRUE)
   }
   links <- unique(links)
   if (!length(links)) {
-    message(sprintf("%s: 0 links matched `pattern` -- check the pattern", source$name))
+    hint <- if (is.null(source$crawl_pattern)) {
+      "no links found -- check `root_url`"
+    } else {
+      "0 links matched `pattern` -- check the pattern"
+    }
+    message(sprintf("%s: %s", source$name, hint))
     return(FALSE)
   }
   ok <- 0L
+  empty <- 0L
   skipped <- character()
   for (page in links) {
-    success <- tryCatch({
+    # tryCatch yields TRUE (ingested), NA (page had no chunks), or FALSE (error).
+    outcome <- tryCatch({
       chunks <- read_page_chunks(page)
-      chunks$source <- source$name
-      chunks$url <- page
-      ragnar::ragnar_store_insert(store, chunks)
-      TRUE
+      if (nrow(chunks) == 0L) {
+        message("  empty ", page)
+        NA
+      } else {
+        chunks$source <- source$name
+        chunks$url <- page
+        ragnar::ragnar_store_insert(store, chunks)
+        TRUE
+      }
     }, error = function(e) {
       message("  skip ", page, ": ", conditionMessage(e))
       FALSE
     })
-    if (isTRUE(success)) ok <- ok + 1L else skipped <- c(skipped, page)
+    if (isTRUE(outcome)) {
+      ok <- ok + 1L
+    } else if (is.na(outcome)) {
+      empty <- empty + 1L
+    } else {
+      skipped <- c(skipped, page)
+    }
   }
-  message(sprintf("%s: %d/%d pages ingested, %d skipped",
-                  source$name, ok, length(links), length(skipped)))
+  message(sprintf("%s: %d/%d pages ingested, %d empty, %d skipped",
+                  source$name, ok, length(links), empty, length(skipped)))
   length(skipped) == 0L
 }
 
@@ -63,7 +89,10 @@ ingest_source <- function(store, source) {
 #' @param path Path to the DuckDB store to create.
 #' @param embed Optional embedding function. When `NULL` (default), uses OpenAI
 #'   `text-embedding-3-small` and requires `OPENAI_API_KEY`.
-#' @param overwrite Overwrite an existing store at `path`? Defaults to `TRUE`.
+#' @param overwrite Overwrite an existing store at `path`? Defaults to `FALSE`,
+#'   so an existing store is left intact unless you explicitly opt in --
+#'   rebuilding discards a store that may represent real crawl time and API
+#'   spend.
 #'
 #' @return Invisibly, `TRUE` if every source ingested cleanly, `FALSE`
 #'   otherwise. The store and its index are built either way.
@@ -74,12 +103,18 @@ ingest_source <- function(store, source) {
 #' src <- sources(web("handbook", "https://docs.example.com/", pattern = "\\.html$"))
 #' build_store(src, "handbook.duckdb")
 #' }
-build_store <- function(sources, path, embed = NULL, overwrite = TRUE) {
+build_store <- function(sources, path, embed = NULL, overwrite = FALSE) {
+  if (file.exists(path) && !overwrite) {
+    stop("a store already exists at ", path,
+         " -- pass `overwrite = TRUE` to rebuild it")
+  }
   if (is.null(embed)) {
     if (!nzchar(Sys.getenv("OPENAI_API_KEY"))) {
       stop("OPENAI_API_KEY not set -- add it to ~/.Renviron, or pass `embed=`")
     }
     embed <- function(x) ragnar::embed_openai(x, model = "text-embedding-3-small")
+  } else if (!is.function(embed)) {
+    stop("`embed` must be a function, or NULL to use the OpenAI default")
   }
   store <- ragnar::ragnar_store_create(
     path,

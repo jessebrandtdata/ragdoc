@@ -8,8 +8,9 @@
 #' when the BM25 index is intact on disk. Loading `fts` here keeps hybrid
 #' (vector + keyword) search working; keyword search matters for exact-token
 #' queries an agent makes, like an error code or a function name. `LOAD` is
-#' offline once the extension is installed, and failures are swallowed because
-#' the query path ([search_docs()]) still guards retrieval.
+#' offline once the extension is installed, and a load failure is non-fatal
+#' (logged, not raised) because the query path ([search_docs()]) still guards
+#' retrieval and degrades to vector-only search.
 #'
 #' @param path Path to the DuckDB store created by [build_store()].
 #'
@@ -24,7 +25,11 @@ connect_store <- function(path) {
   store <- ragnar::ragnar_store_connect(path, read_only = TRUE)
   tryCatch(
     DBI::dbExecute(S7::prop(store, "con"), "LOAD fts;"),
-    error = function(e) invisible(NULL)
+    error = function(e) {
+      message("ragdoc: could not load DuckDB 'fts' extension on this ",
+              "connection -- keyword search may be unavailable (",
+              conditionMessage(e), ")")
+    }
   )
   store
 }
@@ -96,7 +101,11 @@ select_chunks <- function(res, n = 8, source = NULL) {
   if (!is.null(res$source)) res$source <- flatten_col(res$source)
   if (!is.null(res$url)) res$url <- flatten_col(res$url)
   if (!is.null(source)) {
-    res <- res[res$source == source, , drop = FALSE]
+    # `==` against an NA source yields NA, and an NA logical row-index injects a
+    # spurious all-NA row -- guard so a chunk with a missing source is dropped,
+    # not turned into a phantom match.
+    keep <- !is.na(res$source) & res$source == source
+    res <- res[keep, , drop = FALSE]
   }
   utils::head(res, n)
 }
@@ -116,7 +125,9 @@ select_chunks <- function(res, n = 8, source = NULL) {
 format_chunks <- function(chunks, max_chars = 1500) {
   if (nrow(chunks) == 0) return("no matches")
   parts <- vapply(seq_len(nrow(chunks)), function(i) {
-    txt <- chunks$text[[i]]
+    # Coerce defensively: like source/url, `text` can arrive as a list-column
+    # cell holding a length-1+ vector, which would make `nchar()` error.
+    txt <- paste(as.character(chunks$text[[i]]), collapse = " ")
     if (nchar(txt) > max_chars) txt <- paste0(substr(txt, 1, max_chars), " \u2026")
     sprintf("[%s \u00b7 %s]\n%s", chunks$source[[i]], chunks$url[[i]], txt)
   }, character(1))
@@ -151,13 +162,20 @@ format_chunks <- function(chunks, max_chars = 1500) {
 #' cat(search_docs(store, "how do I rotate the signing keys", n = 5))
 #' }
 search_docs <- function(store, query, n = 8, source = NULL) {
+  # When a source filter is set, over-fetch (n * 4) so the post-filter cap can
+  # still reach n in-source chunks. A fixed heuristic: a store dominated by
+  # other sources may still under-fill n -- acceptable, since search_docs is a
+  # best-effort retrieval tool, not a guaranteed-count API.
   res <- tryCatch(
     retrieve_resilient(store, query, top_k = if (is.null(source)) n else n * 4L),
     error = function(e) structure(list(), class = "ragnar_retrieve_error",
                                   message = conditionMessage(e))
   )
   if (inherits(res, "ragnar_retrieve_error")) {
-    return(paste0("retrieval failed: ", attr(res, "message")))
+    # Log the raw error server-side; return a generic message so the MCP caller
+    # never sees internal filesystem paths or SQL from ragnar/DuckDB.
+    message("ragdoc retrieval error: ", attr(res, "message"))
+    return("retrieval failed: internal error (see server logs)")
   }
   format_chunks(select_chunks(res, n = n, source = source))
 }

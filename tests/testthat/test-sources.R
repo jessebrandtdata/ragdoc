@@ -19,6 +19,15 @@ test_that("web() rejects empty or non-string name and root_url", {
   expect_error(web("ok", "https://x.example/", pattern = 1), "pattern")
 })
 
+test_that("web() requires an http(s) URL scheme", {
+  expect_error(web("a", "file:///etc/passwd"), "http")
+  expect_error(web("a", "ftp://x.example/"), "http")
+})
+
+test_that("web() rejects an invalid regex pattern", {
+  expect_error(web("a", "https://x.example/", pattern = "["), "regular expression")
+})
+
 test_that("sources() collects sources and preserves order", {
   spec <- sources(
     web("a", "https://a.example/"),

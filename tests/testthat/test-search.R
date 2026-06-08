@@ -93,17 +93,38 @@ test_that("search_docs over-fetches then filters when source is set", {
   expect_no_match(out, "\\[handbook")
 })
 
-test_that("search_docs reports retrieval failure instead of erroring", {
+test_that("search_docs reports a generic failure and does not leak the raw error", {
   local_mocked_bindings(
-    ragnar_retrieve = function(...) stop("boom"),
-    ragnar_retrieve_vss = function(...) stop("boom"),
+    ragnar_retrieve = function(...) stop("secret/path/boom"),
+    ragnar_retrieve_vss = function(...) stop("secret/path/boom"),
     .package = "ragnar"
   )
   # No DBI connection on a NULL store, so the fts reload also fails and the
-  # vector-only fallback throws too. The degrade warning along the way is
-  # incidental here; we care that the failure surfaces as a message.
-  out <- suppressWarnings(search_docs(store = NULL, query = "q"))
+  # vector-only fallback throws too. The raw error is logged via message(); the
+  # caller-facing return is generic so internal paths never reach the agent.
+  expect_message(
+    suppressWarnings(search_docs(store = NULL, query = "q")),
+    "boom"
+  )
+  out <- suppressWarnings(suppressMessages(search_docs(store = NULL, query = "q")))
   expect_match(out, "retrieval failed")
+  expect_no_match(out, "boom")
+})
+
+test_that("select_chunks drops NA-source rows instead of injecting a phantom match", {
+  res <- data.frame(text = c("x", "y"), source = c("handbook", NA),
+                    url = c("u1", "u2"), stringsAsFactors = FALSE)
+  sel <- select_chunks(res, n = 5, source = "handbook")
+  expect_equal(nrow(sel), 1)
+  expect_identical(sel$source, "handbook")
+})
+
+test_that("format_chunks tolerates a list-column text cell", {
+  chunks <- data.frame(source = "handbook", url = "u", stringsAsFactors = FALSE)
+  chunks$text <- list(c("part one", "part two"))
+  out <- format_chunks(chunks)
+  expect_match(out, "part one")
+  expect_match(out, "part two")
 })
 
 test_that("retrieve_resilient returns hybrid results when available", {

@@ -16,7 +16,7 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Imports:
     DBI,
-    ragnar,
+    ragnar (>= 0.3.0),
     S7,
     utils
 Suggests:

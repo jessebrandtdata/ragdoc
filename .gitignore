@@ -5,4 +5,12 @@
 .Rproj.user/
 .Rhistory
 .RData
+# secrets / credentials -- never commit
 .Renviron
+.env
+*.env
+*.pem
+*.key
+*.p12
+*credentials*.json
+*service-account*.json

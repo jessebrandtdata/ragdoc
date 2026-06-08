@@ -43,8 +43,8 @@ Requires the suggested packages \pkg{ellmer} and \pkg{mcptools}.
 }
 \examples{
 \dontrun{
-store <- connect_store("handbook.duckdb")
-serve_mcp(store,
+# Pass the store path -- the server starts even before the store is built.
+serve_mcp("handbook.duckdb",
   name        = "search_handbook",
   description = "Search the Example Co engineering handbook.")
 }

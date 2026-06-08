@@ -21,8 +21,9 @@ extension on the connection. ragnar's hybrid retrieval relies on a
 when the BM25 index is intact on disk. Loading \code{fts} here keeps hybrid
 (vector + keyword) search working; keyword search matters for exact-token
 queries an agent makes, like an error code or a function name. \code{LOAD} is
-offline once the extension is installed, and failures are swallowed because
-the query path (\code{\link[=search_docs]{search_docs()}}) still guards retrieval.
+offline once the extension is installed, and a load failure is non-fatal
+(logged, not raised) because the query path (\code{\link[=search_docs]{search_docs()}}) still guards
+retrieval and degrades to vector-only search.
 }
 \examples{
 \dontrun{

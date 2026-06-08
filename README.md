@@ -51,20 +51,20 @@ agent. Restrict to one source with `search_docs(store, query, source = "handbook
 ## Serving over MCP
 
 Most of the value is exposing the store to a coding agent. A complete MCP server
-is four lines — drop this in a script (e.g. `mcp_server.R`) and point your agent
+is three lines — drop this in a script (e.g. `mcp_server.R`) and point your agent
 at it:
 
 ```r
 library(ragdoc)
-store <- connect_store("handbook.duckdb")
-serve_mcp(store,
+serve_mcp("handbook.duckdb",
   name        = "search_handbook",
   description = "Search the Example Co engineering handbook.")
 ```
 
-The agent now has a `search_handbook` tool. If the store hasn't been built yet,
-`serve_mcp()` still starts and the tool reports that clearly rather than crashing
-the server.
+The agent now has a `search_handbook` tool. `serve_mcp()` accepts either a store
+path (shown here) or a connected store from `connect_store()`. Given a path, the
+server starts even if the store hasn't been built yet — the tool reports that
+clearly rather than crashing the server.
 
 ## How it works (and why the extra layer)
 

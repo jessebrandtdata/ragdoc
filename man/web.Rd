@@ -11,7 +11,7 @@ web(name, root_url, pattern = NULL)
 \code{source} filter in \code{\link[=search_docs]{search_docs()}}. Must be unique within a \code{\link[=sources]{sources()}}
 spec.}
 
-\item{root_url}{The site to crawl.}
+\item{root_url}{The site to crawl. Must be an \verb{http://} or \verb{https://} URL.}
 
 \item{pattern}{Optional regular expression; only links matching it are
 ingested. Use it to stay within one book or section and skip nav/asset

@@ -10,7 +10,7 @@ is_string <- function(x) is.character(x) && length(x) == 1L && !is.na(x)
 #' @param name Short source label, recorded on every chunk and usable as the
 #'   `source` filter in [search_docs()]. Must be unique within a [sources()]
 #'   spec.
-#' @param root_url The site to crawl.
+#' @param root_url The site to crawl. Must be an `http://` or `https://` URL.
 #' @param pattern Optional regular expression; only links matching it are
 #'   ingested. Use it to stay within one book or section and skip nav/asset
 #'   links, e.g. `"^https://docs\\.example\\.com/[^#]+\\.html$"`.
@@ -27,8 +27,18 @@ web <- function(name, root_url, pattern = NULL) {
   if (!is_string(root_url) || !nzchar(root_url)) {
     stop("`root_url` must be a non-empty string")
   }
-  if (!is.null(pattern) && !is_string(pattern)) {
-    stop("`pattern` must be a string or NULL")
+  if (!grepl("^https?://", root_url)) {
+    stop("`root_url` must be an http:// or https:// URL: ", root_url)
+  }
+  if (!is.null(pattern)) {
+    if (!is_string(pattern)) {
+      stop("`pattern` must be a string or NULL")
+    }
+    ok <- tryCatch({
+      suppressWarnings(grepl(pattern, ""))
+      TRUE
+    }, error = function(e) FALSE)
+    if (!ok) stop("`pattern` is not a valid regular expression: ", pattern)
   }
   structure(
     list(name = name, root_url = root_url, crawl_pattern = pattern, type = "web"),

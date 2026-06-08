@@ -6,6 +6,55 @@ test_that("build_store errors without OPENAI_API_KEY when embed is NULL", {
   )
 })
 
+test_that("build_store refuses to overwrite an existing store by default", {
+  tmp <- withr::local_tempfile(fileext = ".duckdb")
+  file.create(tmp)
+  expect_error(
+    build_store(sources(web("a", "https://a.example/")), tmp),
+    "already exists"
+  )
+})
+
+test_that("build_store rejects a non-function embed", {
+  tmp <- withr::local_tempfile(fileext = ".duckdb")  # not created -> does not exist
+  expect_error(
+    build_store(sources(web("a", "https://a.example/")), tmp, embed = "nope"),
+    "must be a function"
+  )
+})
+
+test_that("ingest_source reports link-discovery failure and returns FALSE", {
+  local_mocked_bindings(
+    ragnar_find_links = function(...) stop("DNS boom"),
+    .package = "ragnar"
+  )
+  expect_message(
+    res <- ingest_source(store = NULL, source = web("a", "https://a.example/")),
+    "link discovery failed"
+  )
+  expect_false(res)
+})
+
+test_that("ingest_source counts empty pages without marking them skipped", {
+  local_mocked_bindings(
+    ragnar_find_links = function(...) c("https://a.example/full.html", "https://a.example/empty.html"),
+    ragnar_store_insert = function(store, chunks) invisible(NULL),
+    .package = "ragnar"
+  )
+  local_mocked_bindings(
+    read_page_chunks = function(page) {
+      if (grepl("empty", page)) {
+        data.frame(text = character(0), stringsAsFactors = FALSE)
+      } else {
+        data.frame(text = "chunk", stringsAsFactors = FALSE)
+      }
+    }
+  )
+  s <- web("a", "https://a.example/")
+  expect_message(res <- ingest_source(store = NULL, source = s), "empty")
+  expect_true(res)  # an empty page is not a skipped (failed) page
+})
+
 test_that("ingest_source reports 0 links and returns FALSE when nothing matches", {
   local_mocked_bindings(
     ragnar_find_links = function(...) character(),
