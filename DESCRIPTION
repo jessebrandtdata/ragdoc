@@ -17,6 +17,7 @@ Roxygen: list(markdown = TRUE)
 Imports:
     DBI,
     ragnar (>= 0.3.0),
+    rlang,
     S7,
     utils
 Suggests:

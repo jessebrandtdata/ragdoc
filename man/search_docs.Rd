@@ -27,10 +27,11 @@ optionally restricted to one \code{source}, and formats them with source-and-URL
 citations.
 }
 \details{
-When a \code{source} filter is given, retrieval over-fetches (\code{n * 4}) before
-filtering so the cap still yields up to \code{n} in-source chunks. Retrieval is
-network- and API-backed; failures are caught and returned as a short message
-rather than raised, so a server built on this never crashes.
+When a \code{source} is given, the restriction is pushed down into retrieval (via
+ragnar's \code{filter}), so ragnar ranks within that source and returns the top
+\code{n} directly -- no over-fetching or post-hoc filtering. Retrieval is network-
+and API-backed; failures are caught and returned as a short message rather
+than raised, so a server built on this never crashes.
 }
 \examples{
 \dontrun{

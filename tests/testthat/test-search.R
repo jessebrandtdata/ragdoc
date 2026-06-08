@@ -10,21 +10,10 @@ fixture <- function() {
   )
 }
 
-test_that("select_chunks caps at n with no filter", {
-  sel <- select_chunks(fixture(), n = 2, source = NULL)
+test_that("select_chunks caps at n", {
+  sel <- select_chunks(fixture(), n = 2)
   expect_equal(nrow(sel), 2)
   expect_identical(sel$text[1], "chunk A")
-})
-
-test_that("select_chunks filters by source, then caps", {
-  sel <- select_chunks(fixture(), n = 5, source = "handbook")
-  expect_equal(nrow(sel), 2)
-  expect_true(all(sel$source == "handbook"))
-})
-
-test_that("select_chunks returns no rows when the source is absent", {
-  sel <- select_chunks(fixture(), n = 5, source = "nope")
-  expect_equal(nrow(sel), 0)
 })
 
 test_that("select_chunks flattens hybrid list-columns to atomic", {
@@ -44,15 +33,10 @@ test_that("select_chunks flattens hybrid list-columns to atomic", {
   out <- format_chunks(sel)
   expect_match(out, "\\[handbook")
   expect_match(out, "\\[api")
-
-  # filtering by source still works after flattening
-  filtered <- select_chunks(hybrid, n = 5, source = "handbook")
-  expect_equal(nrow(filtered), 1)
-  expect_identical(filtered$source, "handbook")
 })
 
 test_that("format_chunks cites [source . url] and separates entries", {
-  out <- format_chunks(select_chunks(fixture(), n = 5, source = "handbook"))
+  out <- format_chunks(select_chunks(fixture(), n = 5))
   expect_match(out, "\\[handbook")
   expect_match(out, "https://docs.example.com/a.html", fixed = TRUE)
   expect_match(out, "---", fixed = TRUE)
@@ -78,19 +62,19 @@ test_that("search_docs formats retrieved chunks", {
   expect_match(out, "\\[api")
 })
 
-test_that("search_docs over-fetches then filters when source is set", {
-  seen_top_k <- NULL
+test_that("search_docs pushes the source filter into retrieval without over-fetching", {
+  seen <- new.env()
   local_mocked_bindings(
-    ragnar_retrieve = function(store, query, top_k = 8) {
-      seen_top_k <<- top_k
+    ragnar_retrieve = function(store, query, top_k = 8, ...) {
+      seen$top_k <- top_k
+      seen$has_filter <- "filter" %in% ...names()  # do not force the filter promise
       fixture()
     },
     .package = "ragnar"
   )
-  out <- search_docs(store = NULL, query = "q", n = 2, source = "api")
-  expect_equal(seen_top_k, 8)          # n * 4 over-fetch
-  expect_match(out, "\\[api")
-  expect_no_match(out, "\\[handbook")
+  search_docs(store = NULL, query = "q", n = 2, source = "api")
+  expect_equal(seen$top_k, 2)     # asks for exactly n -- no n*4 over-fetch
+  expect_true(seen$has_filter)    # source restriction pushed down as a filter
 })
 
 test_that("search_docs reports a generic failure and does not leak the raw error", {
@@ -109,14 +93,6 @@ test_that("search_docs reports a generic failure and does not leak the raw error
   out <- suppressWarnings(suppressMessages(search_docs(store = NULL, query = "q")))
   expect_match(out, "retrieval failed")
   expect_no_match(out, "boom")
-})
-
-test_that("select_chunks drops NA-source rows instead of injecting a phantom match", {
-  res <- data.frame(text = c("x", "y"), source = c("handbook", NA),
-                    url = c("u1", "u2"), stringsAsFactors = FALSE)
-  sel <- select_chunks(res, n = 5, source = "handbook")
-  expect_equal(nrow(sel), 1)
-  expect_identical(sel$source, "handbook")
 })
 
 test_that("format_chunks tolerates a list-column text cell", {

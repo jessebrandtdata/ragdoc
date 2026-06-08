@@ -45,17 +45,21 @@ connect_store <- function(path) {
 #' @param store A connected ragnar store (see [connect_store()]).
 #' @param query Natural-language query string.
 #' @param top_k Number of chunks to retrieve. Defaults to 8.
+#' @param ... Forwarded unchanged to ragnar's retrieval functions (and on to
+#'   both the vector and BM25 halves of hybrid search). Used to pass a `filter`
+#'   expression; forwarded lazily so a data-masked expression is never forced
+#'   outside ragnar's filter context.
 #'
 #' @return A data frame of retrieved chunks (ragnar's retrieval result).
 #' @keywords internal
 #' @noRd
-retrieve_resilient <- function(store, query, top_k = 8) {
+retrieve_resilient <- function(store, query, top_k = 8, ...) {
   degrade <- function() {
     warning("BM25 retrieval unavailable; using vector-only search", call. = FALSE)
-    ragnar::ragnar_retrieve_vss(store, query, top_k = top_k)
+    ragnar::ragnar_retrieve_vss(store, query, top_k = top_k, ...)
   }
   tryCatch(
-    ragnar::ragnar_retrieve(store, query, top_k = top_k),
+    ragnar::ragnar_retrieve(store, query, top_k = top_k, ...),
     error = function(e) {
       loaded <- tryCatch({
         DBI::dbExecute(S7::prop(store, "con"), "LOAD fts;")
@@ -63,7 +67,7 @@ retrieve_resilient <- function(store, query, top_k = 8) {
       }, error = function(e2) FALSE)
       if (!loaded) return(degrade())
       tryCatch(
-        ragnar::ragnar_retrieve(store, query, top_k = top_k),
+        ragnar::ragnar_retrieve(store, query, top_k = top_k, ...),
         error = function(e2) degrade()
       )
     }
@@ -84,29 +88,21 @@ flatten_col <- function(col) {
   }, character(1))
 }
 
-#' Filter and cap retrieved chunks
+#' Normalize and cap retrieved chunks
 #'
-#' Normalizes the `source`/`url` columns to atomic (hybrid retrieval returns them
-#' as list-columns), optionally filters to a single `source`, then caps the
-#' result at `n` rows.
+#' Flattens the `source`/`url` columns to atomic (hybrid retrieval returns them
+#' as list-columns) and caps the result at `n` rows. Source restriction happens
+#' upstream, inside retrieval (see [search_docs()]), so this does not filter.
 #'
 #' @param res A retrieval result data frame.
 #' @param n Maximum number of chunks to keep. Defaults to 8.
-#' @param source Optional source name to filter to.
 #'
-#' @return The filtered, capped data frame with atomic `source`/`url`.
+#' @return The capped data frame with atomic `source`/`url`.
 #' @keywords internal
 #' @noRd
-select_chunks <- function(res, n = 8, source = NULL) {
+select_chunks <- function(res, n = 8) {
   if (!is.null(res$source)) res$source <- flatten_col(res$source)
   if (!is.null(res$url)) res$url <- flatten_col(res$url)
-  if (!is.null(source)) {
-    # `==` against an NA source yields NA, and an NA logical row-index injects a
-    # spurious all-NA row -- guard so a chunk with a missing source is dropped,
-    # not turned into a phantom match.
-    keep <- !is.na(res$source) & res$source == source
-    res <- res[keep, , drop = FALSE]
-  }
   utils::head(res, n)
 }
 
@@ -141,10 +137,11 @@ format_chunks <- function(chunks, max_chars = 1500) {
 #' optionally restricted to one `source`, and formats them with source-and-URL
 #' citations.
 #'
-#' When a `source` filter is given, retrieval over-fetches (`n * 4`) before
-#' filtering so the cap still yields up to `n` in-source chunks. Retrieval is
-#' network- and API-backed; failures are caught and returned as a short message
-#' rather than raised, so a server built on this never crashes.
+#' When a `source` is given, the restriction is pushed down into retrieval (via
+#' ragnar's `filter`), so ragnar ranks within that source and returns the top
+#' `n` directly -- no over-fetching or post-hoc filtering. Retrieval is network-
+#' and API-backed; failures are caught and returned as a short message rather
+#' than raised, so a server built on this never crashes.
 #'
 #' @param store A connected ragnar store (see [connect_store()]).
 #' @param query Natural-language search query.
@@ -162,12 +159,16 @@ format_chunks <- function(chunks, max_chars = 1500) {
 #' cat(search_docs(store, "how do I rotate the signing keys", n = 5))
 #' }
 search_docs <- function(store, query, n = 8, source = NULL) {
-  # When a source filter is set, over-fetch (n * 4) so the post-filter cap can
-  # still reach n in-source chunks. A fixed heuristic: a store dominated by
-  # other sources may still under-fill n -- acceptable, since search_docs is a
-  # best-effort retrieval tool, not a guaranteed-count API.
   res <- tryCatch(
-    retrieve_resilient(store, query, top_k = if (is.null(source)) n else n * 4L),
+    if (is.null(source)) {
+      retrieve_resilient(store, query, top_k = n)
+    } else {
+      # Push the restriction into retrieval so ragnar ranks within the source
+      # and returns the top n directly. `.data$source` is the chunk column;
+      # `.env$src` is this argument's value -- pronouns disambiguate the two.
+      src <- source
+      retrieve_resilient(store, query, top_k = n, filter = .data$source == .env$src)
+    },
     error = function(e) structure(list(), class = "ragnar_retrieve_error",
                                   message = conditionMessage(e))
   )
@@ -177,5 +178,5 @@ search_docs <- function(store, query, n = 8, source = NULL) {
     message("ragdoc retrieval error: ", attr(res, "message"))
     return("retrieval failed: internal error (see server logs)")
   }
-  format_chunks(select_chunks(res, n = n, source = source))
+  format_chunks(select_chunks(res, n = n))
 }
