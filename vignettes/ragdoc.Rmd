@@ -42,6 +42,32 @@ src <- sources(
 )
 ```
 
+### Local Markdown directories
+
+A source can also be a directory of Markdown files on disk. `local_dir()` walks
+the directory (recursively by default), ingesting files whose names match
+`pattern` — `"\\.md$"` by default. Each file's path becomes its citation
+locator, so retrieved passages point back at the file they came from.
+
+```{r}
+src <- sources(
+  local_dir("notes", "~/project/docs")
+)
+```
+
+Tune the walk with `pattern` and `recursive`, and mix local and web sources in
+one spec:
+
+```{r}
+src <- sources(
+  web("api",   "https://api.example.com/", pattern = "\\.html$"),
+  local_dir("notes", "~/project/docs", pattern = "\\.(md|markdown)$", recursive = FALSE)
+)
+```
+
+`local_dir()` is a provisional name (the natural peer of `web()`, `local()`,
+collides with base R's `local()`), so it may change before a stable release.
+
 ## 2. Build the store
 
 `build_store()` crawls each source, converts pages to markdown, chunks and

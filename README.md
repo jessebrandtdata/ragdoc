@@ -30,10 +30,12 @@ Describe where your docs live, build the store once, then query it:
 ```r
 library(ragdoc)
 
-# 1. Point it at YOUR docs. Each source is a site to crawl, with an optional
-#    regex restricting which links under it get ingested.
+# 1. Point it at YOUR docs. A source is either a site to crawl (`web()`, with an
+#    optional regex restricting which links get ingested) or a local directory of
+#    Markdown (`local_dir()`). Mix them freely in one spec.
 src <- sources(
-  web("handbook", "https://docs.example.com/", pattern = "\\.html$")
+  web("handbook", "https://docs.example.com/", pattern = "\\.html$"),
+  local_dir("notes", "~/project/docs")
 )
 
 # 2. Build an embedded, hybrid-searchable store. One-time; needs OPENAI_API_KEY.
@@ -86,8 +88,12 @@ can query directly if you want to drop below `ragdoc`. No walled garden.
 
 ## Status
 
-`0.1.0` — web-crawl sources, OpenAI embeddings (override with `embed=`).
-Indexing local files (a directory of Markdown) is planned for a later release.
+`0.1.0` — web-crawl sources (`web()`) and local Markdown directories
+(`local_dir()`), OpenAI embeddings (override with `embed=`).
+
+> `local_dir()` is a **provisional name** — the obvious peer of `web()` would be
+> `local()`, but that shadows base R's `local()`. The public name is not yet
+> settled.
 
 ## License
 

@@ -47,3 +47,47 @@ test_that("search_docs restricts retrieval to a single source end-to-end", {
   out_all <- search_docs(store, "beta gadgets section", n = 10)
   expect_match(out_all, "\\[b \u00b7")
 })
+
+test_that("build_store indexes a local directory end-to-end", {
+  skip_on_cran()
+  # build_store() lets ragnar infer embedding size by probing embed("foo"), so the
+  # embedder must handle any-length input (unlike the fake_embed above, which is
+  # only ever called on chunk text >= 8 chars). This one is length-agnostic.
+  probe_safe_embed <- function(x) {
+    d <- 8L
+    m <- t(vapply(x, function(s) {
+      codes <- utf8ToInt(s)
+      v <- numeric(d)
+      for (k in seq_along(codes)) {
+        idx <- ((k - 1L) %% d) + 1L
+        v[idx] <- v[idx] + codes[k]
+      }
+      v
+    }, numeric(d)))
+    m / (sqrt(rowSums(m^2)) + 1e-9)
+  }
+
+  docs <- withr::local_tempdir()
+  writeLines(c("# Widgets", "alpha apple content about widgets", "",
+               "## More", "alpha avocado section here"), file.path(docs, "widgets.md"))
+  sub <- file.path(docs, "deep")
+  dir.create(sub)
+  writeLines(c("# Gadgets", "beta banana content about gadgets", "",
+               "## More", "gamma grape section here"), file.path(sub, "gadgets.md"))
+  writeLines("ignore me, not markdown", file.path(docs, "notes.txt"))
+
+  path <- withr::local_tempfile(fileext = ".duckdb")
+  spec <- sources(local_dir("docs", docs))
+  ok <- suppressMessages(build_store(spec, path, embed = probe_safe_embed))
+  expect_true(ok)
+
+  store <- connect_store(path)
+
+  # The recursive .md walk reached both files; the .txt was skipped by pattern.
+  out <- search_docs(store, "widgets gadgets section", n = 10)
+  expect_match(out, "widgets\\.md")
+  expect_match(out, "gadgets\\.md")
+  expect_no_match(out, "notes\\.txt")
+  # Citations are tagged with the source name.
+  expect_match(out, "\\[docs \u00b7")
+})
