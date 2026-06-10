@@ -17,7 +17,7 @@ instead of erroring, citation formatting, and one-line MCP serving.
 
 ```r
 # install.packages("pak")
-pak::pak("jesseabrandt/ragdoc")
+pak::pak("jessebrandtdata/ragdoc")
 ```
 
 You'll need an `OPENAI_API_KEY` in your environment (used to embed documents at

@@ -29,6 +29,6 @@ Suggests:
     withr
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: https://github.com/jesseabrandt/ragdoc
-BugReports: https://github.com/jesseabrandt/ragdoc/issues
+URL: https://github.com/jessebrandtdata/ragdoc
+BugReports: https://github.com/jessebrandtdata/ragdoc/issues
 Config/roxygen2/version: 8.0.0
