@@ -32,7 +32,7 @@ library(ragdoc)
 
 # 1. Point it at YOUR docs. A source is either a site to crawl (`web()`, with an
 #    optional regex restricting which links get ingested) or a local directory of
-#    Markdown (`local_dir()`). Mix them freely in one spec.
+#    files (`local_dir()` — Markdown, code, PDF, docx, and more). Mix them freely.
 src <- sources(
   web("handbook", "https://docs.example.com/", pattern = "\\.html$"),
   local_dir("notes", "~/project/docs")
@@ -49,6 +49,21 @@ cat(search_docs(store, "how do I rotate the signing keys", n = 5))
 `search_docs()` returns a single formatted string — the passages, each prefixed
 with its source and URL and separated by a rule. That's what you hand to an
 agent. Restrict to one source with `search_docs(store, query, source = "handbook")`.
+
+When your docs change, update the store cheaply instead of rebuilding it — a
+refresh re-embeds only what's new or edited:
+
+```r
+refresh_store(src, "handbook.duckdb")
+```
+
+Prefer to keep the corpus in a config file rather than in R? Declare it in a
+`sources.yml` and load it — each entry with a `root_url` becomes a `web()`
+source, each with a `path` a `local_dir()`:
+
+```r
+src <- load_sources("sources.yml")   # -> the same spec as sources(...)
+```
 
 ## Serving over MCP
 
@@ -88,12 +103,17 @@ can query directly if you want to drop below `ragdoc`. No walled garden.
 
 ## Status
 
-`0.1.0` — web-crawl sources (`web()`) and local Markdown directories
-(`local_dir()`), OpenAI embeddings (override with `embed=`).
+`0.1.0` — web-crawl sources (`web()`) and local directories of mixed files
+(`local_dir()` — Markdown, code, PDF, docx, …), a `sources.yml` loader
+(`load_sources()`), cheap incremental refresh (`refresh_store()`), and OpenAI
+embeddings (override with `embed=`).
 
-> `local_dir()` is a **provisional name** — the obvious peer of `web()` would be
-> `local()`, but that shadows base R's `local()`. The public name is not yet
-> settled.
+Non-text local files (PDF, docx, pptx, …) are converted with
+[MarkItDown][markitdown] via `ragnar::read_as_markdown()`, which needs a Python
+environment with `markitdown` installed; plain text, Markdown, and code ingest
+without it.
+
+[markitdown]: https://github.com/microsoft/markitdown
 
 ## License
 

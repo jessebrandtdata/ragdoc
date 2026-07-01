@@ -77,13 +77,13 @@ test_that("build_store indexes a local directory end-to-end", {
   writeLines("ignore me, not markdown", file.path(docs, "notes.txt"))
 
   path <- withr::local_tempfile(fileext = ".duckdb")
-  spec <- sources(local_dir("docs", docs))
+  spec <- sources(local_dir("docs", docs, pattern = "\\.md$"))
   ok <- suppressMessages(build_store(spec, path, embed = probe_safe_embed))
   expect_true(ok)
 
   store <- connect_store(path)
 
-  # The recursive .md walk reached both files; the .txt was skipped by pattern.
+  # The recursive .md walk reached both files; the .txt was excluded by pattern.
   out <- search_docs(store, "widgets gadgets section", n = 10)
   expect_match(out, "widgets\\.md")
   expect_match(out, "gadgets\\.md")

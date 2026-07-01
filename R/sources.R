@@ -48,16 +48,18 @@ web <- function(name, root_url, pattern = NULL) {
 
 #' Declare a local directory source
 #'
-#' Describes a directory of Markdown files to ingest into a store. [build_store()]
-#' lists the files under `path` whose names match `pattern`, converts each to
-#' markdown, chunks it, and records `name` on every chunk so results can be cited
-#' and filtered by source. The file's path is recorded as its citation locator
-#' (the `url` column), so retrieved passages point back at the file they came
-#' from.
+#' Describes a directory of files to ingest into a store. [build_store()] lists
+#' the files under `path` whose names match `pattern`, converts each to markdown,
+#' chunks it, and records `name` on every chunk so results can be cited and
+#' filtered by source. The file's path is recorded as its citation locator (the
+#' `url` column), so retrieved passages point back at the file they came from.
 #'
-#' Naming note: `local_dir()` is a provisional name. The obvious peer of [web()]
-#' would be `local()`, but that shadows base R's [base::local()]; the public name
-#' for this constructor is still open.
+#' Files are read by extension: plain text and Markdown (`.md`, `.txt`) verbatim,
+#' source code (`.R`, `.py`, `.qmd`, `.sql`, …) wrapped in a language-fenced
+#' block, and everything else (`.pdf`, `.docx`, `.pptx`, `.html`, `.ipynb`, …)
+#' converted with MarkItDown via [ragnar::read_as_markdown()], which needs a
+#' Python environment with `markitdown` installed. Files over 25 MB are skipped
+#' at build time (large PDFs can exhaust memory).
 #'
 #' @param name Short source label, recorded on every chunk and usable as the
 #'   `source` filter in [search_docs()]. Must be unique within a [sources()]
@@ -65,8 +67,8 @@ web <- function(name, root_url, pattern = NULL) {
 #' @param path Path to the directory to ingest. The directory is read at build
 #'   time, so it need not exist when the source is declared.
 #' @param pattern Regular expression matched against file *names* (not full
-#'   paths); only matching files are ingested. Defaults to `"\\.md$"` (Markdown).
-#'   Pass `NULL` to take every file under `path`.
+#'   paths); only matching files are ingested. Defaults to `NULL`, which takes
+#'   every file under `path`. Pass a pattern to narrow, e.g. `"\\.md$"`.
 #' @param recursive Descend into subdirectories? Defaults to `TRUE`.
 #'
 #' @return A `ragdoc_source` object, to be passed to [sources()].
@@ -74,8 +76,8 @@ web <- function(name, root_url, pattern = NULL) {
 #' @export
 #' @examples
 #' local_dir("notes", "~/project/docs")
-#' local_dir("notes", "~/project/docs", pattern = "\\.(md|markdown)$")
-local_dir <- function(name, path, pattern = "\\.md$", recursive = TRUE) {
+#' local_dir("notes", "~/project/docs", pattern = "\\.(md|qmd|pdf)$")
+local_dir <- function(name, path, pattern = NULL, recursive = TRUE) {
   if (!is_string(name) || !nzchar(name)) {
     stop("`name` must be a non-empty string")
   }

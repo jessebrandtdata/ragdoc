@@ -4,7 +4,7 @@
 \alias{local_dir}
 \title{Declare a local directory source}
 \usage{
-local_dir(name, path, pattern = "\\\\.md$", recursive = TRUE)
+local_dir(name, path, pattern = NULL, recursive = TRUE)
 }
 \arguments{
 \item{name}{Short source label, recorded on every chunk and usable as the
@@ -15,8 +15,8 @@ spec.}
 time, so it need not exist when the source is declared.}
 
 \item{pattern}{Regular expression matched against file \emph{names} (not full
-paths); only matching files are ingested. Defaults to \code{"\\\\.md$"} (Markdown).
-Pass \code{NULL} to take every file under \code{path}.}
+paths); only matching files are ingested. Defaults to \code{NULL}, which takes
+every file under \code{path}. Pass a pattern to narrow, e.g. \code{"\\\\.md$"}.}
 
 \item{recursive}{Descend into subdirectories? Defaults to \code{TRUE}.}
 }
@@ -24,21 +24,23 @@ Pass \code{NULL} to take every file under \code{path}.}
 A \code{ragdoc_source} object, to be passed to \code{\link[=sources]{sources()}}.
 }
 \description{
-Describes a directory of Markdown files to ingest into a store. \code{\link[=build_store]{build_store()}}
-lists the files under \code{path} whose names match \code{pattern}, converts each to
-markdown, chunks it, and records \code{name} on every chunk so results can be cited
-and filtered by source. The file's path is recorded as its citation locator
-(the \code{url} column), so retrieved passages point back at the file they came
-from.
+Describes a directory of files to ingest into a store. \code{\link[=build_store]{build_store()}} lists
+the files under \code{path} whose names match \code{pattern}, converts each to markdown,
+chunks it, and records \code{name} on every chunk so results can be cited and
+filtered by source. The file's path is recorded as its citation locator (the
+\code{url} column), so retrieved passages point back at the file they came from.
 }
 \details{
-Naming note: \code{local_dir()} is a provisional name. The obvious peer of \code{\link[=web]{web()}}
-would be \code{local()}, but that shadows base R's \code{\link[base:local]{base::local()}}; the public name
-for this constructor is still open.
+Files are read by extension: plain text and Markdown (\code{.md}, \code{.txt}) verbatim,
+source code (\code{.R}, \code{.py}, \code{.qmd}, \code{.sql}, …) wrapped in a language-fenced
+block, and everything else (\code{.pdf}, \code{.docx}, \code{.pptx}, \code{.html}, \code{.ipynb}, …)
+converted with MarkItDown via \code{\link[ragnar:read_as_markdown]{ragnar::read_as_markdown()}}, which needs a
+Python environment with \code{markitdown} installed. Files over 25 MB are skipped
+at build time (large PDFs can exhaust memory).
 }
 \examples{
 local_dir("notes", "~/project/docs")
-local_dir("notes", "~/project/docs", pattern = "\\\\.(md|markdown)$")
+local_dir("notes", "~/project/docs", pattern = "\\\\.(md|qmd|pdf)$")
 }
 \seealso{
 \code{\link[=sources]{sources()}}, \code{\link[=web]{web()}}, \code{\link[=build_store]{build_store()}}

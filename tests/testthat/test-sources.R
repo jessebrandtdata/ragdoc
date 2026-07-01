@@ -28,12 +28,12 @@ test_that("web() rejects an invalid regex pattern", {
   expect_error(web("a", "https://x.example/", pattern = "["), "regular expression")
 })
 
-test_that("local_dir() builds a source spec with markdown defaults", {
+test_that("local_dir() builds a source spec that takes every file by default", {
   s <- local_dir("notes", "/tmp/docs")
   expect_s3_class(s, "ragdoc_source")
   expect_identical(s$name, "notes")
   expect_identical(s$path, "/tmp/docs")
-  expect_identical(s$file_pattern, "\\.md$")
+  expect_null(s$file_pattern)  # default: every file under path
   expect_true(s$recursive)
   expect_identical(s$type, "local")
 })
