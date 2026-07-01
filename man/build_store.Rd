@@ -17,7 +17,8 @@ build_store(sources, path, embed = NULL, overwrite = FALSE)
 \item{overwrite}{Overwrite an existing store at \code{path}? Defaults to \code{FALSE},
 so an existing store is left intact unless you explicitly opt in --
 rebuilding discards a store that may represent real crawl time and API
-spend.}
+spend. To \emph{update} an existing store rather than replace it, use
+\code{\link[=refresh_store]{refresh_store()}}.}
 }
 \value{
 Invisibly, \code{TRUE} if every source ingested cleanly, \code{FALSE}
@@ -27,12 +28,19 @@ otherwise. The store and its index are built either way.
 Creates a fresh DuckDB store, ingests every source in \code{sources}, and builds
 the hybrid retrieval index. Per-source failure is isolated: one bad source
 logs an error and is skipped without aborting the rest, so a partial store is
-still usable.
+still usable. Once built, update it cheaply in place with \code{\link[=refresh_store]{refresh_store()}}
+instead of rebuilding from scratch.
 }
 \details{
 By default documents are embedded with OpenAI's \code{text-embedding-3-small},
 which requires \code{OPENAI_API_KEY} in the environment. Pass \code{embed} to use a
-different embedder (any function ragnar accepts).
+different embedder (any function ragnar accepts); ragnar records the embedder
+in the store, so \code{\link[=refresh_store]{refresh_store()}} reuses it automatically.
+
+Ingestion runs in parallel worker processes via \pkg{mirai}, and non-text
+local files (pdf, docx, …) are converted with MarkItDown through
+\code{\link[ragnar:read_as_markdown]{ragnar::read_as_markdown()}}, which needs a Python environment with
+\code{markitdown} installed.
 }
 \examples{
 \dontrun{
@@ -41,5 +49,5 @@ build_store(src, "handbook.duckdb")
 }
 }
 \seealso{
-\code{\link[=sources]{sources()}}, \code{\link[=connect_store]{connect_store()}}, \code{\link[=search_docs]{search_docs()}}
+\code{\link[=sources]{sources()}}, \code{\link[=refresh_store]{refresh_store()}}, \code{\link[=connect_store]{connect_store()}}, \code{\link[=search_docs]{search_docs()}}
 }

@@ -6,7 +6,7 @@
 \alias{ragdoc-package}
 \title{ragdoc: Point a Coding Agent at Your Docs with Retrieval-Augmented Search}
 \description{
-Builds a hybrid-search retrieval-augmented-generation (RAG) store over your own documentation sources and serves it to coding agents through a Model Context Protocol search tool. Point it at the sites you want indexed and agents retrieve the actual passages, each returned with a source-and-URL citation, instead of guessing. A thin, opinionated layer over 'ragnar' that adds a resilient crawl-and-build pipeline, per-connection full-text search setup, graceful retrieval fallback, and one-line MCP serving.
+Builds a hybrid-search retrieval-augmented-generation (RAG) store over your own documentation sources and serves it to coding agents through a Model Context Protocol search tool. Point it at the sites you want indexed and agents retrieve the actual passages, each returned with a source-and-URL citation, instead of guessing. Sources can be websites to crawl or local directories of mixed files (Markdown, code, PDF, and more). A thin, opinionated layer over 'ragnar' that adds a resilient build pipeline, cheap incremental refresh, per-connection full-text search setup, graceful retrieval fallback, and one-line MCP serving.
 }
 \seealso{
 Useful links:

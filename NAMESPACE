@@ -2,6 +2,9 @@
 
 export(build_store)
 export(connect_store)
+export(load_sources)
+export(local_dir)
+export(refresh_store)
 export(search_docs)
 export(serve_mcp)
 export(sources)

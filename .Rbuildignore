@@ -5,3 +5,6 @@
 ^.*\.duckdb$
 ^\.Renviron$
 ^\.github$
+^\.mcp\.json$
+^DECISIONS\.md$
+^north_star\.md$
