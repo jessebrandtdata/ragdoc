@@ -14,3 +14,6 @@
 *.p12
 *credentials*.json
 *service-account*.json
+
+# Local MCP config (curated btw R-dev server; per-worker, never committed)
+.mcp.json
