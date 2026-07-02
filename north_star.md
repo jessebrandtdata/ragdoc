@@ -1,5 +1,3 @@
 # North Star — ragdoc
 
-<!-- Blank — Jesse writes the vision here (edit in lodestar).
-     What is this repo for, and what does "done" look like?
-     An agent will not author this; your committed edit on main is the approval. -->
+Should contain engine for r-knowledge-rag, which should import this package. May be quite thin wrapper of ragnar. Not sure what features are worth building, or how this engine justifies its existence. Regardless, this is the code I would post publicly - I don't want to ship someone else's textbook - just say that's what I used it for. If user wanted to recreate r-knowledge-rag, they would use this and input the URLs for those 2 textbooks. Also, r-knowledge-rag skills should maybe be documented here.
