@@ -4,7 +4,13 @@
 \alias{build_store}
 \title{Build a RAG store from a sources spec}
 \usage{
-build_store(sources, path, embed = NULL, overwrite = FALSE)
+build_store(
+  sources,
+  path,
+  embed = NULL,
+  overwrite = FALSE,
+  memory_limit = NULL
+)
 }
 \arguments{
 \item{sources}{A sources spec from \code{\link[=sources]{sources()}}.}
@@ -19,6 +25,13 @@ so an existing store is left intact unless you explicitly opt in --
 rebuilding discards a store that may represent real crawl time and API
 spend. To \emph{update} an existing store rather than replace it, use
 \code{\link[=refresh_store]{refresh_store()}}.}
+
+\item{memory_limit}{Optional cap on the memory the build may use, as a size
+string (e.g. \code{"12GB"}), applied to the build connection. The store engine
+auto-caps memory at ~80\% of detected RAM; under a memory-constrained cgroup
+that cap can be too low for the vector-index build to finish on a large
+store, OOMing mid-build. Raise it here (from a runner with enough headroom).
+\code{NULL} (default) leaves the engine's own default in place.}
 }
 \value{
 Invisibly, \code{TRUE} if every source ingested cleanly, \code{FALSE}
@@ -46,6 +59,8 @@ local files (pdf, docx, …) are converted with MarkItDown through
 \dontrun{
 src <- sources(web("handbook", "https://docs.example.com/", pattern = "\\\\.html$"))
 build_store(src, "handbook.duckdb")
+# A large corpus whose index build needs more memory than the default cap:
+build_store(src, "big.duckdb", memory_limit = "12GB")
 }
 }
 \seealso{

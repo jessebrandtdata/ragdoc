@@ -53,3 +53,8 @@ See `~/workspace/docs/decision-log.md` for the convention.
 - **Choice:** Add exported load_sources(path) turning sources.yml into a sources() spec (dispatch web vs local by root_url/path). mirai and yaml both go in Suggests with a requireNamespace() guard (mirai checked up front in build/refresh via check_ingest_deps(); yaml in load_sources) — mirai is used only transitively via ragnar_store_ingest, so Imports would trip an "imported but unused" R CMD check NOTE, and Suggests+guard mirrors ragdoc's existing ellmer/mcptools pattern
 - **Why:** Lets instances stay declarative; keeps the hard-dependency surface minimal and consistent with the package's existing optional-dependency style
 - **Reversible:** yes · **Decided by:** agent
+
+## 2026-07-02 — build_store/refresh_store gain a memory_limit knob
+- **Choice:** Add memory_limit= (size string like '12GB') to build_store() and refresh_store(); it runs SET memory_limit on the store connection before ingest so the whole build — including the HNSW vector-index step — can use more than the engine's auto-cap. Strictly validated (injection-safe). NULL default keeps the engine's default. **Named by function, not tech** — Jesse's refinement: the arg is `memory_limit`, not `duckdb_memory`, so the public API isn't pinned to DuckDB.
+- **Why:** DuckDB auto-caps memory at ~80% of RAM; under a constrained cgroup that cap is too low and the index build OOMs on a large store (hit on the 37k-chunk coursework rebuild). Jesse decided ragdoc owns this rather than the instance build scripts, and that the arg be named for its function.
+- **Reversible:** no · **Decided by:** jesse

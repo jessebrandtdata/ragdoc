@@ -167,3 +167,28 @@ test_that("refresh_store errors when no store exists yet", {
     "no store"
   )
 })
+
+test_that("memory_limit must be a valid size string (and is injection-safe)", {
+  expect_invisible(apply_memory_limit(NULL, NULL))               # NULL is a no-op
+  expect_error(apply_memory_limit(NULL, "lots"), "size string")
+  expect_error(apply_memory_limit(NULL, "12"), "size string")   # no unit
+  expect_error(apply_memory_limit(NULL, 12), "size string")     # not a string
+  expect_error(apply_memory_limit(NULL, "8GB'; DROP TABLE chunks; --"), "size string")
+})
+
+test_that("apply_memory_limit sets the store engine's memory limit on the connection", {
+  skip_on_cran()
+  fake_embed <- function(x) matrix(0, nrow = length(x), ncol = 4L)
+  path <- withr::local_tempfile(fileext = ".duckdb")
+  store <- ragnar::ragnar_store_create(
+    path, embed = fake_embed,
+    extra_cols = data.frame(source = character(), url = character()), overwrite = TRUE
+  )
+  con <- S7::prop(store, "con")
+  before <- DBI::dbGetQuery(con, "SELECT current_setting('memory_limit') AS m")$m
+  apply_memory_limit(store, "1GB")
+  after <- DBI::dbGetQuery(con, "SELECT current_setting('memory_limit') AS m")$m
+  expect_false(identical(before, after))  # the limit changed
+  expect_match(after, "[0-9]")            # to a concrete size
+  DBI::dbDisconnect(con, shutdown = TRUE)
+})

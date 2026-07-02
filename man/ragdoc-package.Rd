@@ -11,8 +11,8 @@ Builds a hybrid-search retrieval-augmented-generation (RAG) store over your own 
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/jesseabrandt/ragdoc}
-  \item Report bugs at \url{https://github.com/jesseabrandt/ragdoc/issues}
+  \item \url{https://github.com/jessebrandtdata/ragdoc}
+  \item Report bugs at \url{https://github.com/jessebrandtdata/ragdoc/issues}
 }
 
 }

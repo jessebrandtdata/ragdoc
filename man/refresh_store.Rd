@@ -4,13 +4,19 @@
 \alias{refresh_store}
 \title{Refresh an existing store in place}
 \usage{
-refresh_store(sources, path)
+refresh_store(sources, path, memory_limit = NULL)
 }
 \arguments{
 \item{sources}{A sources spec from \code{\link[=sources]{sources()}} -- typically the same one you
 built with.}
 
 \item{path}{Path to an existing store created by \code{\link[=build_store]{build_store()}}.}
+
+\item{memory_limit}{Optional cap on the memory the refresh may use, as a size
+string (e.g. \code{"12GB"}), applied to the refresh connection. A refresh
+rebuilds the vector index, which can OOM on a large store under a
+constrained memory cap; raise the limit here. See \code{\link[=build_store]{build_store()}}. \code{NULL}
+(default) leaves the engine's own default in place.}
 }
 \value{
 Invisibly, \code{TRUE} if every source ingested cleanly, \code{FALSE}

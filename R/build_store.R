@@ -171,6 +171,24 @@ check_ingest_deps <- function() {
   }
 }
 
+# Optionally raise the memory the build may use, by setting the store engine's
+# memory limit on this connection. The engine (DuckDB) auto-caps memory at ~80%
+# of detected RAM, but under a constrained cgroup (e.g. a memory-capped job
+# runner) that cap can be too low for the HNSW vector-index build to finish -- it
+# OOMs mid-build on a large store. Setting `memory_limit` (e.g. "12GB") raises it
+# for the whole build, including the index step. Validated strictly since it is
+# interpolated into a SET statement.
+apply_memory_limit <- function(store, memory_limit) {
+  if (is.null(memory_limit)) return(invisible())
+  if (!is_string(memory_limit) ||
+      !grepl("^[0-9]+(\\.[0-9]+)?\\s*[KMGT]i?B$", memory_limit, ignore.case = TRUE)) {
+    stop("`memory_limit` must be a size string like \"12GB\", or NULL")
+  }
+  DBI::dbExecute(S7::prop(store, "con"),
+                 sprintf("SET memory_limit = '%s'", memory_limit))
+  invisible()
+}
+
 # Ingest every source into an open store, isolating per-source failure: one bad
 # source logs an error and is skipped without aborting the rest. Returns TRUE if
 # every source ingested cleanly.
@@ -216,6 +234,12 @@ ingest_all <- function(store, sources) {
 #'   rebuilding discards a store that may represent real crawl time and API
 #'   spend. To *update* an existing store rather than replace it, use
 #'   [refresh_store()].
+#' @param memory_limit Optional cap on the memory the build may use, as a size
+#'   string (e.g. `"12GB"`), applied to the build connection. The store engine
+#'   auto-caps memory at ~80% of detected RAM; under a memory-constrained cgroup
+#'   that cap can be too low for the vector-index build to finish on a large
+#'   store, OOMing mid-build. Raise it here (from a runner with enough headroom).
+#'   `NULL` (default) leaves the engine's own default in place.
 #'
 #' @return Invisibly, `TRUE` if every source ingested cleanly, `FALSE`
 #'   otherwise. The store and its index are built either way.
@@ -225,8 +249,11 @@ ingest_all <- function(store, sources) {
 #' \dontrun{
 #' src <- sources(web("handbook", "https://docs.example.com/", pattern = "\\.html$"))
 #' build_store(src, "handbook.duckdb")
+#' # A large corpus whose index build needs more memory than the default cap:
+#' build_store(src, "big.duckdb", memory_limit = "12GB")
 #' }
-build_store <- function(sources, path, embed = NULL, overwrite = FALSE) {
+build_store <- function(sources, path, embed = NULL, overwrite = FALSE,
+                        memory_limit = NULL) {
   if (file.exists(path) && !overwrite) {
     stop("a store already exists at ", path,
          " -- pass `overwrite = TRUE` to rebuild it, or use `refresh_store()`",
@@ -240,6 +267,7 @@ build_store <- function(sources, path, embed = NULL, overwrite = FALSE) {
     extra_cols = data.frame(source = character(), url = character()),
     overwrite = overwrite
   )
+  apply_memory_limit(store, memory_limit)
   all_ok <- ingest_all(store, sources)
   ragnar::ragnar_store_build_index(store)
   invisible(all_ok)
@@ -265,6 +293,11 @@ build_store <- function(sources, path, embed = NULL, overwrite = FALSE) {
 #' @param sources A sources spec from [sources()] -- typically the same one you
 #'   built with.
 #' @param path Path to an existing store created by [build_store()].
+#' @param memory_limit Optional cap on the memory the refresh may use, as a size
+#'   string (e.g. `"12GB"`), applied to the refresh connection. A refresh
+#'   rebuilds the vector index, which can OOM on a large store under a
+#'   constrained memory cap; raise the limit here. See [build_store()]. `NULL`
+#'   (default) leaves the engine's own default in place.
 #'
 #' @return Invisibly, `TRUE` if every source ingested cleanly, `FALSE`
 #'   otherwise. The index is rebuilt either way.
@@ -276,7 +309,7 @@ build_store <- function(sources, path, embed = NULL, overwrite = FALSE) {
 #' build_store(src, "handbook.duckdb")   # once
 #' refresh_store(src, "handbook.duckdb") # later, cheaply
 #' }
-refresh_store <- function(sources, path) {
+refresh_store <- function(sources, path, memory_limit = NULL) {
   if (!file.exists(path)) {
     stop("no store at ", path, " -- build it first with `build_store()`")
   }
@@ -289,6 +322,7 @@ refresh_store <- function(sources, path) {
         path, conditionMessage(e)), call. = FALSE)
     }
   )
+  apply_memory_limit(store, memory_limit)
   all_ok <- ingest_all(store, sources)
   ragnar::ragnar_store_build_index(store)
   invisible(all_ok)
