@@ -16,6 +16,22 @@ test_that("select_chunks caps at n", {
   expect_identical(sel$text[1], "chunk A")
 })
 
+test_that("flatten_col passes an atomic column through unchanged", {
+  x <- c("handbook", "api", "handbook")
+  expect_identical(flatten_col(x), x)
+})
+
+test_that("flatten_col joins distinct values and maps an empty cell to NA", {
+  # A list-column cell can hold repeated identical values (collapsed to one),
+  # genuinely distinct values (joined), or nothing at all (-> NA).
+  col <- list(c("handbook", "handbook"), c("handbook", "api"), character(0), "solo")
+  out <- flatten_col(col)
+  expect_identical(out[1], "handbook")          # duplicates collapse to one
+  expect_identical(out[2], "handbook, api")     # distinct values are joined
+  expect_true(is.na(out[3]))                    # empty cell -> NA
+  expect_identical(out[4], "solo")
+})
+
 test_that("select_chunks flattens hybrid list-columns to atomic", {
   # ragnar hybrid retrieval returns source/url as list-columns; a chunk matched
   # by both vector + BM25 carries its value duplicated into a length-2 cell.
@@ -50,6 +66,21 @@ test_that("format_chunks truncates long passages", {
   long <- data.frame(text = strrep("x", 5000), source = "handbook",
                      url = "https://docs.example.com/x.html", stringsAsFactors = FALSE)
   expect_match(format_chunks(long, max_chars = 100), "\u2026")
+})
+
+test_that("format_chunks omits the separator for a single chunk", {
+  one <- data.frame(text = "the only chunk", source = "handbook",
+                    url = "https://docs.example.com/a.html", stringsAsFactors = FALSE)
+  out <- format_chunks(one)
+  expect_match(out, "\\[handbook")
+  expect_no_match(out, "---", fixed = TRUE)  # the rule only separates entries
+})
+
+test_that("format_chunks leaves a passage exactly at the cap untruncated", {
+  chunk <- data.frame(text = strrep("x", 100), source = "s", url = "u",
+                      stringsAsFactors = FALSE)
+  # nchar == max_chars is not > max_chars, so no ellipsis is appended.
+  expect_no_match(format_chunks(chunk, max_chars = 100), "\u2026")
 })
 
 test_that("search_docs formats retrieved chunks", {
