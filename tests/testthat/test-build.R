@@ -19,6 +19,43 @@ test_that("local_prepare_fn wraps source code in a language-fenced block", {
   expect_identical(unique(ch$url), f)
 })
 
+test_that("local_prepare_fn maps known code extensions to their language fence", {
+  dir <- withr::local_tempdir()
+  py <- file.path(dir, "s.py")
+  writeLines(c("import os", "print(os.getcwd())", "x = 1 + 2"), py)
+  expect_match(paste(local_prepare_fn("c")(py)$text, collapse = "\n"),
+               "```python", fixed = TRUE)
+  sql <- file.path(dir, "q.sql")
+  writeLines(c("select * from t", "where id = 1"), sql)
+  expect_match(paste(local_prepare_fn("c")(sql)$text, collapse = "\n"),
+               "```sql", fixed = TRUE)
+})
+
+test_that("local_prepare_fn uses a bare fence for code with no language mapping", {
+  dir <- withr::local_tempdir()
+  go <- file.path(dir, "m.go")
+  writeLines(c("package main", "func main() { println(\"hi\") }"), go)
+  txt <- paste(local_prepare_fn("c")(go)$text, collapse = "\n")
+  expect_match(txt, "```", fixed = TRUE)        # still fenced as code
+  expect_no_match(txt, "```go", fixed = TRUE)   # but with no language label
+})
+
+test_that("local_prepare_fn matches extensions case-insensitively", {
+  dir <- withr::local_tempdir()
+  f <- file.path(dir, "S.PY")
+  writeLines(c("import sys", "print(sys.version)"), f)
+  expect_match(paste(local_prepare_fn("c")(f)$text, collapse = "\n"),
+               "```python", fixed = TRUE)
+})
+
+test_that("local_prepare_fn reads .txt verbatim, not as a fenced code block", {
+  dir <- withr::local_tempdir()
+  f <- file.path(dir, "readme.txt")
+  writeLines(c("plain text notes about widgets", "second line of prose here"), f)
+  txt <- paste(local_prepare_fn("notes")(f)$text, collapse = "\n")
+  expect_no_match(txt, "```", fixed = TRUE)
+})
+
 # --- web discovery + dispatch (ragnar mocked, offline) ----------------------
 
 test_that("ingest_web reports link-discovery failure and returns FALSE", {
@@ -144,6 +181,16 @@ test_that("build_store rejects a non-function embed", {
     build_store(sources(web("a", "https://a.example/")), tmp, embed = "nope"),
     "must be a function"
   )
+})
+
+test_that("resolve_embed returns a function for NULL when OPENAI_API_KEY is set", {
+  withr::local_envvar(OPENAI_API_KEY = "sk-test-not-real")
+  expect_type(resolve_embed(NULL), "closure")
+})
+
+test_that("resolve_embed passes a supplied embedder through unchanged", {
+  my <- function(x) x
+  expect_identical(resolve_embed(my), my)
 })
 
 test_that("build_store isolates a failing source and still builds the index", {

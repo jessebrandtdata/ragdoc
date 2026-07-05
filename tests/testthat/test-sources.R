@@ -97,3 +97,25 @@ test_that("sources() rejects duplicate names", {
     "unique"
   )
 })
+
+test_that("web() and local_dir() reject NA and multi-element name/path", {
+  expect_error(web(NA_character_, "https://x.example/"), "name")
+  expect_error(web(c("a", "b"), "https://x.example/"), "name")
+  expect_error(web("ok", NA_character_), "root_url")
+  expect_error(local_dir("ok", NA_character_), "path")
+  expect_error(local_dir(c("a", "b"), "/tmp/docs"), "name")
+})
+
+test_that("sources() preserves order across three sources and takes a single source", {
+  spec <- sources(
+    web("a", "https://a.example/"),
+    local_dir("b", "/tmp/b"),
+    web("c", "https://c.example/")
+  )
+  expect_length(spec, 3)
+  expect_identical(vapply(spec, `[[`, character(1), "name"), c("a", "b", "c"))
+
+  one <- sources(web("solo", "https://solo.example/"))
+  expect_s3_class(one, "ragdoc_sources")
+  expect_length(one, 1)
+})
