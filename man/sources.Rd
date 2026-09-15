@@ -7,13 +7,14 @@
 sources(...)
 }
 \arguments{
-\item{...}{One or more \code{ragdoc_source} objects, e.g. from \code{\link[=web]{web()}}.}
+\item{...}{One or more \code{ragdoc_source} objects, e.g. from \code{\link[=web]{web()}} or
+\code{\link[=local_dir]{local_dir()}}.}
 }
 \value{
 A \code{ragdoc_sources} object: a list of sources to build from.
 }
 \description{
-Bundles one or more sources (currently \code{\link[=web]{web()}} sources) into the spec that
+Bundles one or more sources (\code{\link[=web]{web()}} or \code{\link[=local_dir]{local_dir()}}) into the spec that
 \code{\link[=build_store]{build_store()}} ingests. Source names must be unique so retrieved chunks can
 be attributed and filtered unambiguously.
 }
@@ -24,5 +25,5 @@ sources(
 )
 }
 \seealso{
-\code{\link[=web]{web()}}, \code{\link[=build_store]{build_store()}}
+\code{\link[=web]{web()}}, \code{\link[=local_dir]{local_dir()}}, \code{\link[=build_store]{build_store()}}
 }

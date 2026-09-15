@@ -1,0 +1,2 @@
+# append-only logs: union both sides on merge/rebase
+DECISIONS.md merge=union

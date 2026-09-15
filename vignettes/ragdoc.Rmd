@@ -42,6 +42,54 @@ src <- sources(
 )
 ```
 
+### Local directories of files
+
+A source can also be a directory of files on disk. `local_dir()` walks the
+directory (recursively by default) and ingests every file, reading each by its
+type: plain text and Markdown verbatim, source code (`.R`, `.py`, `.qmd`, …)
+wrapped in a language-fenced block, and everything else (`.pdf`, `.docx`,
+`.pptx`, `.html`, …) converted with MarkItDown via `ragnar::read_as_markdown()`.
+Each file's path becomes its citation locator, so retrieved passages point back
+at the file they came from.
+
+```{r}
+src <- sources(
+  local_dir("notes", "~/project/docs")
+)
+```
+
+Narrow the walk with `pattern` (a regex on file names) and `recursive`, and mix
+local and web sources in one spec:
+
+```{r}
+src <- sources(
+  web("api",   "https://api.example.com/", pattern = "\\.html$"),
+  local_dir("notes", "~/project/docs", pattern = "\\.(md|qmd|pdf)$", recursive = FALSE)
+)
+```
+
+Converting non-text files needs a Python environment with `markitdown`
+installed; plain text, Markdown, and code ingest without it. Local files over
+25 MB are skipped (large PDFs can exhaust memory).
+
+### Sources from a YAML file
+
+To keep the corpus in a config file instead of R code, list it in a
+`sources.yml` and load it — an entry with a `root_url` becomes a `web()` source,
+one with a `path` a `local_dir()`:
+
+```yaml
+- name: api
+  root_url: https://api.example.com/
+  crawl_pattern: "\\.html$"
+- name: notes
+  path: ~/project/docs
+```
+
+```{r}
+src <- load_sources("sources.yml")
+```
+
 ## 2. Build the store
 
 `build_store()` crawls each source, converts pages to markdown, chunks and
@@ -56,6 +104,18 @@ build_store(src, "handbook.duckdb")
 
 A broken page or an unreachable source is logged and skipped, not fatal, so you
 always get a usable store.
+
+When your sources change, you don't have to pay for a full rebuild. `refresh_store()`
+re-ingests into the existing store and re-embeds only what is new or edited,
+skipping everything unchanged:
+
+```{r}
+refresh_store(src, "handbook.duckdb")
+```
+
+Refresh is add-and-update only — it never removes anything, so reach for a full
+rebuild (`build_store(overwrite = TRUE)`) when pages are removed or renamed, or
+when you change the chunking or the embedder.
 
 ## 3. Query it
 
